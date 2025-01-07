@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
         "Sender failed to dial the receiver"
     );
 
-    std::cout << "Hit entery to start timing: ";
+    std::cout << "Hit enter to start timing: ";
     std::cout.flush();
     cr = std::cin.get();
     std::cout << "Let's go\n";
