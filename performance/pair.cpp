@@ -179,6 +179,6 @@ int main(int argc, char** argv) {
     std::cout << "msgs/sec:   " << msgTiming << std::endl;
     std::cout << "KB/sec:     " << xferTiming/1024.0 << std::endl;
 
-
+    return EXIT_SUCCESS;
 
 }
