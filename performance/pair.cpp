@@ -36,6 +36,7 @@
 #include <iostream>
 #include <chrono>
 #include <stdlib.h>
+#include <unistd.h>
 
 
 /**
@@ -93,7 +94,7 @@ receiver(std::string uri, size_t nmsg) {
             nng_recv(s, &pData, &rcvSize, NNG_FLAG_ALLOC),
             "Receiver receiving a message"
         );
-        nng_free(pData);                            // Release dynamic storage.
+        nng_free(pData, rcvSize);                            // Release dynamic storage.
     }
     return;                                        // exit thread.
 }
@@ -110,11 +111,11 @@ receiver(std::string uri, size_t nmsg) {
  */
 void
 sender(nng_socket s, size_t nmsg, size_t size) {
-    uint8_t pData = new uint8_t[size];               // Data buffer.
+    uint8_t* pData = new uint8_t[size];               // Data buffer.
 
     for (int i = 0; i < nmsg; i++) {
         checkstat(
-            nng_send(s, pData, size, 0),
+            nng_send(s, reinterpret_cast<void*>(pData), size, 0),
             "Sender sending a message"
         );
     }
@@ -127,10 +128,10 @@ sender(nng_socket s, size_t nmsg, size_t size) {
  */
 int main(int argc, char** argv) {
     // Get our parameters.
-    std::string uri(argv[1])
-    size_t nmsg = atoul(argv[2]);
-    size_t msgSize = atoul(argv[3]);
-    std::string cr;
+    std::string uri(argv[1]);
+    size_t nmsg = atol(argv[2]);
+    size_t msgSize = atol(argv[3]);
+    char cr;
 
     nng_socket s;
     // start the receiver:
@@ -152,30 +153,30 @@ int main(int argc, char** argv) {
         "Sender failed to dial the receiver"
     );
 
-    std::cout << "Hit entery to start tiing: ";
+    std::cout << "Hit entery to start timing: ";
     std::cout.flush();
-    std::cin >> cr;
-
+    cr = std::cin.get();
+    std::cout << "Let's go\n";
     // start time:
 
-    std::crono::high_resolution_clock clock;
-    auto start = clock.now();
-    sender(s, nmgs, msgSize);
-    thReceiver.join();                  // Ensures the sender got them all.
-    auto end = clock.now();
+    
+    auto start = std::chrono::high_resolution_clock::now();
+    sender(s, nmsg, msgSize);
+    thrReceiver.join();                  // Ensures the sender got them all.
+    auto end = std::chrono::high_resolution_clock::now();
     auto duration = end - start;       // and std::duration.
 
     // Milliseconds is good enough I think
 
-    std::milli ms(duration);
+    //std::chrono::milliseconds ms(duration);
     // Turn that into fp seconds:
 
-    double timing = (double)ms.count()/1000;   
+    double timing = (double)std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()/1000.0;
     double msgTiming = (double)nmsg/timing;
     double xferTiming = (double)(nmsg * msgSize)/timing;
 
     std::cout << "Time:       " << timing << std::endl;
-    std::cout << "msgs/sec:   " << msgTiming << std:endl;
+    std::cout << "msgs/sec:   " << msgTiming << std::endl;
     std::cout << "KB/sec:     " << xferTiming/1024.0 << std::endl;
 
 
