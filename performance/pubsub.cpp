@@ -99,12 +99,17 @@ subscriber(std::string uri) {
             nng_recv(s, &pmsg, &rcvSize, NNG_FLAG_ALLOC),
             "Failed to receive subscription msg"
         );
+        
         uint8_t* p = reinterpret_cast<uint8_t*>(pmsg);
-        if (*p) done = true;                // Last msg?
-
+        if (p[0]) {
+            done = true;                // Last msg?q
+        
+        }
         nng_free(pmsg, rcvSize);
     }
-
+    checkstat(
+        nng_close(s), "Subscriber closing socket."
+    );
 }
 
 /**
@@ -122,12 +127,14 @@ void
 publisher(nng_socket s, size_t nmsg, size_t size) {
     // The messgae block:
 
+    
     uint8_t* pMessage = new uint8_t[size];
     pMessage[0] = 0;                            // not the last.
 
     // Send all but the last msg.
 
-    for (int i =0; i < size-1; i++) {
+    for (int i =0; i < nmsg-1; i++) {
+        
         checkstat(
             nng_send(s, pMessage, size, 0), 
             "Publisher, publishing a message"
@@ -138,11 +145,11 @@ publisher(nng_socket s, size_t nmsg, size_t size) {
     // set the end flag and send the last msg.
 
     pMessage[0] = 1;
+    
     checkstat(
         nng_send(s, pMessage, size, 0),
         "Publishing last message"
     );
-
     // Delete the storage
 
     delete []pMessage;
@@ -159,9 +166,11 @@ int main(int arg, char** argv) {
     // get the program parameters.
 
     std::string uri(argv[1]);
-    size_t nmsg = atol(argv[1]);
-    size_t msgSize = atol(argv[2]);
-    size_t nSubs = atol(argv[3]);
+    size_t nmsg = atol(argv[2]);
+    size_t msgSize = atol(argv[3]);
+    size_t nSubs = atol(argv[4]);
+
+    
 
     // Set up the publication socket -- must be done before
     // we start the subscribers:
@@ -180,6 +189,7 @@ int main(int arg, char** argv) {
     // vector as they're documented to copy construct.
     //
     for (int i=0; i < nSubs; i++) {
+        
         subscribers.push_back(new std::thread(subscriber, uri));
     }
 
@@ -192,11 +202,18 @@ int main(int arg, char** argv) {
 
     auto start = std::chrono::high_resolution_clock::now();
     publisher(s, nmsg, msgSize);   // publish
+    
     // join the subscribers
 
+    
     for (auto p : subscribers) {
         p->join();
+
     }
+    // Only safe to close after the subscribers exit 
+    // else a pub  could be lost
+    //
+    checkstat(nng_close(s), "Publisher closing socket");
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = end - start;
