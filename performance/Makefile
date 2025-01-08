@@ -1,4 +1,4 @@
-all: pair pubsub
+all: pair pubsub reqrep
 
 FLAGS=-lnng -std=c++20
 
@@ -8,3 +8,5 @@ pair: pair.cpp
 pubsub: pubsub.cpp
 	$(CXX) -o pubsub pubsub.cpp $(FLAGS)
 
+reqrep: reqrep.cpp
+	$(CXX) -o reqrep reqrep.cpp $(FLAGS)
