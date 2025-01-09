@@ -1,6 +1,8 @@
-all: pair pubsub reqrep pushpull
+PROGRAMS=pair pubsub reqrep pushpull
 
-FLAGS=-lnng -std=c++20
+all: $(PROGRAMS)
+
+FLAGS=-lnng -std=c++20 -g
 
 pair: pair.cpp
 	$(CXX) -o pair pair.cpp $(FLAGS)
@@ -13,3 +15,6 @@ reqrep: reqrep.cpp
 
 pushpull: pushpull.cpp
 	$(CXX) -o pushpull pushpull.cpp $(FLAGS)
+
+clean:
+	rm -f $(PROGRAMS)
