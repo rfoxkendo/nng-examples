@@ -104,13 +104,16 @@ puller(std::string uri) {
             nng_recv(s, &pMsg, &rcvsize, NNG_FLAG_ALLOC),
             "Pull of data failed.,"
         );
-
+        
         uint8_t* p = reinterpret_cast<uint8_t*>(pMsg);
-        if (*p) done = true;
+        if (*p) {
+            nng_close(s);           // SHutdown the connection.
+            done = true;
+        }
 
         nng_free(pMsg, rcvsize);
     }
-    nng_close(s);           // SHutdown the connection.
+    
 }
 
 /**
@@ -145,7 +148,7 @@ pusher(nng_socket s, size_t nmsg, size_t msgSize, size_t npullers) {
     // even so some pullers don't get the message due to
     // the distribution 
 
-    for (int i =0; i < npullers*4; i++)  {
+    for (int i =0; i < npullers; i++)  {
         checkstat(
             nng_send(s, pMessage, msgSize, 0),
             "Failed to push end message"
