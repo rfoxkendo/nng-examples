@@ -145,7 +145,7 @@ pusher(nng_socket s, size_t nmsg, size_t msgSize, size_t npullers) {
     // even so some pullers don't get the message due to
     // the distribution 
 
-    for (int i =0; i < npullers*2; i++)  {
+    for (int i =0; i < npullers*4; i++)  {
         checkstat(
             nng_send(s, pMessage, msgSize, 0),
             "Failed to push end message"
