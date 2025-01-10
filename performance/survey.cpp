@@ -203,6 +203,10 @@ int main(int argc, char** argv) {
         nng_listen(s, uri.c_str(), nullptr, 0),
         "Surveyor failed to start listening"
     );
+    checkstat(
+        nng_setopt_ms(s, NNG_OPT_SURVEYOR_SURVEYTIME, 8000),
+        "Failed to set survey max response time."
+    );
     // Start the respondeents - reply size 1 bytes.
 
     for (int i =0; i < nSurveyed; i++) {
@@ -230,6 +234,10 @@ int main(int argc, char** argv) {
     checkstat(
         nng_listen(s, uri.c_str(), nullptr, 0),
         "Failed to start listening for second survey"
+    );
+    checkstat(
+        nng_setopt_ms(s, NNG_OPT_SURVEYOR_SURVEYTIME, 8000),
+        "Failed to set survey max response time."
     );
     for (int i =0; i < nSurveyed; i++) {
         threads.push_back(new std::thread(responder, uri, nreq, msgSize));
