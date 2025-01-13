@@ -1,4 +1,4 @@
-PROGRAMS=pair pubsub reqrep pushpull survey
+PROGRAMS=pair pubsub reqrep pushpull survey bus
 
 all: $(PROGRAMS)
 
@@ -18,5 +18,8 @@ pushpull: pushpull.cpp
 
 survey: survey.cpp
 	$(CXX) -o survey survey.cpp $(FLAGS)
+
+bus: bus.cpp
+	$(CXX) -o bus bus.cpp $(FLAGS)
 clean:
 	rm -f $(PROGRAMS)
