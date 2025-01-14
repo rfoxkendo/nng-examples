@@ -2,7 +2,7 @@ PROGRAMS=pair pubsub reqrep pushpull survey bus
 
 all: $(PROGRAMS)
 
-FLAGS=-lnng -std=c++20 -g
+FLAGS=-lnng -std=c++20 -g -O0
 
 pair: pair.cpp
 	$(CXX) -o pair pair.cpp $(FLAGS)
