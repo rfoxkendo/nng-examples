@@ -182,16 +182,22 @@ setupBus(std::vector<std::string> uris, int me, nng_socket s) {
  * receiver
  *    This function is a receiver (not bus 0 thread).
  *   It receives messages until the sequence number is at least nmsg.
- * 
+ *   We then loop reading messages until we see the terminate
+ *   message which has as sequence of 0xffffffff
  * @param base - base URI.
  * @param me   - My position on the bus.
  * @param size - Size of bus.
  * @param nmsg - number of messages that will be received.
+ * @param received - a promise that will be set when we've read a
+ *     message that's got a sequence larger than nmsg.
  * 
- * @return int - SEQ # of last message received.
+ * @note the promise is set with the last sequence number received.
  */
-static int
-receiver(std::string base, size_t size, int me, size_t nmsg) {
+static void
+receiver(
+    std::string base, size_t size, int me, size_t nmsg, 
+    std::promise<int>* received
+) {
     nng_socket s;
     void*  pMsg;
     size_t msgSize;
@@ -219,7 +225,26 @@ receiver(std::string base, size_t size, int me, size_t nmsg) {
         lastseq = *pSeq;
         nng_free(pMsg, msgSize);
     }
+    // set our promise:
 
+    received->set_value(lastseq);
+
+    // Once all threads set the promise value, the
+    // main thread will, eventually send a terminate:
+    // This is done in a loop because other threads
+    // may still be not done so we might get a non
+    // terminate message.
+
+    bool done = false;
+    while (!done) {
+        checkstat(nng_recv(s, &pMsg, &msgSize, NNG_FLAG_ALLOC),
+            "Failed read for termination message."
+        );
+        uint32_t* pFlag = reinterpret_cast<uint32_t*>(pMsg);
+        done = (*pFlag = 0xffffffff);
+        nng_free(pMsg, msgSize);
+    }
+    sleep(2);                   // CLose only when everyone's likely got it.
     checkstat(
         nng_close(s),
         "Failed to close receiver socket."
@@ -227,7 +252,7 @@ receiver(std::string base, size_t size, int me, size_t nmsg) {
 
     // Done.
 
-    return lastseq;
+    
 
 }
 
@@ -260,12 +285,11 @@ int main(int argc, char** argv) {
 
 
     std::vector<std::thread*> receivers;
-    std::vector<std::packaged_task<int(std::string, size_t, int, size_t)>*> tasks;
-    std::vector<std::future<int>*> futures;
+    std::vector<std::shared_future<int>> futures;
     for (int i = 1; i < busSize; i++) {  // 1 since we (0) are not threads.
-        tasks.push_back(new std::packaged_task<int(std::string, size_t, int, size_t)>(&receiver));
-        futures.push_back(new std::future<int>(tasks[tasks.size()-1]->get_future()));
-        receivers.push_back( new std::thread(std::move(*tasks[tasks.size()-1]), baseUri, busSize, i, nmsg));
+        auto p = new std::promise<int>;
+        futures.push_back(p->get_future());
+        receivers.push_back(new std::thread(receiver, baseUri, busSize, i, nmsg, p));
     }
     // Now we can do our part to complete the bus:
 
@@ -278,7 +302,7 @@ int main(int argc, char** argv) {
     auto start  = std::chrono::high_resolution_clock::now();
     int done = 0;         // _count_ of the done tasks. 
     int seq = 0;
-    while (done != tasks.size()) {
+    while (done != futures.size()) {
         uint32_t* msgseq = reinterpret_cast<uint32_t*>(message);
         *msgseq = seq++;
         checkstat(
@@ -291,21 +315,38 @@ int main(int argc, char** argv) {
         for (auto p : futures) {
             auto zero = start-start;    // Zero.
             // Hopefully this is a non-blocking poll
-            if (p->wait_for(zero) == std::future_status::ready) done++; 
+            if (p.wait_for(zero) == std::future_status::ready) done++; 
         }
     }
+    // We can end the timing here because everyone signalled they're done.
+
+    auto end = std::chrono::high_resolution_clock::now();
+    std::cerr << "timing done\n";
+
     // All futures being ready means all tasks/threads are done:
     // Done timing when all the threads exited -- so they got all the msgs
 
     for (auto p : futures) {
-        p->get();
+        p.get();                // Not actually sure I need to do this but...
     }
+    // Now wait for everything to get idle and live in their receive for the
+    // terminate msg
+
+    sleep(2);                                          // Everyon ready for it.
+    std::cerr << "Sending the terminate  msg\n";
+
+    uint32_t* pflag = reinterpret_cast<uint32_t*>(message);
+    *pflag = 0xffffffff;       // Terminate flag
+    checkstat(
+        nng_send(s, message, sizeof(uint32_t), 0),    // Just send the flag.
+        "Failed to send terminate message\n"
+    );
+    std::cerr << "Joining threads\n";
     for (auto p : receivers) {
         p->join();
     }
-    auto end = std::chrono::high_resolution_clock::now();
-    std::cerr << "timing done\n";
-
+    std::cerr << "Joined\n";
+    
     // Release resources:
 
     checkstat(
