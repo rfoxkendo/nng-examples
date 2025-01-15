@@ -31,32 +31,17 @@
  * 
  *Bus sends don't deliver reliably.  Therefore we do this as follows:
  *The first uint32_t of each message is a sequence number.  
- * The receiving threads are packaged tasks and run until they see a sequence number
- * >= the nmsg value.  Then they exit with just some garbage integer value -- for now.
- * The main thread sets up the receiver threads and puts itself on the bus at location
- * 0.  It then sends messages until all of the futures for the packaged tasks are
- * valid - at which point it joins the threads and for the heck of it collects thair
- * values.
+ * Furthermore, buses don't like to send messages when the bus is partially torn down
+ * so we hit on the following scheme:
  * 
- * Note for task/future newbies like me;  The return from a packaged task makes its
- * future valid by setting its return value to the retun avalue of the function.
+ * Each receiver  thread is associated with a future.
  * 
- * The part that is timed is the sending of messages, and final joining of the 
- * threads.
- * 
- * @todo In the future we can have the tasks count the number of missed messages,
- * collect them in the main thread and output the loss statistics as well as timings.
- * 
- * @todo Even the above is not reliable because (I think) the bus teardown needs
- * to be carefully controlled (or done after all is done).  What we may want to do 
- * is not use packaged tasks but copy in a future to a regular thread.
- * 
- * 1. The future is set when timing should be done.
- * 2. After which the software loops on receiving a termination msg.
+ * 1. The future is set when timing should be done for that thread
+ * 2. After which the receiver loops on receiving a termination msg.
  *    which e.g. has a seq of 0xffffffff
  * 3. The main thread, after timing is done does another sleep to
  *   ensure the system is pretty idle and sends the termination
- *   message and when the termination message is rceived,
+ *   message and, when the termination message is rceived,
  * 4.The receiver thread closes down and finishes.
  * 5.After sending the termination message, the main thread
  *   joins the receiver threads.
@@ -64,6 +49,13 @@
  * As long as the terminate message can be received by every receiver,
  * I think this will be reliable and I _think_ the sleep ensures that it
  * will be received since everyone should be in a condition to receiveit.
+ * 
+ *  It certainly acts reliable compared with all the other tries.
+ *  
+ * @todo In the future we can have the tasks count the number of missed messages,
+ * collect them in the main thread and output the loss statistics as well as timings.
+ * 
+ 
  */
 
 #include <future>
