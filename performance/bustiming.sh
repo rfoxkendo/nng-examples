@@ -13,7 +13,7 @@ do
     for members in 2 3 4 5
     do
 	echo msg size $size members $members >>bus.log
-	./bus tcp://localhost:300%d 10000 $size $members >> bus.log
+	./bus $service  10000 $size $members >> bus.log
     done
 done
 done

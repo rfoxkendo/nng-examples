@@ -220,7 +220,7 @@ receiver(
     // set our promise:
 
     received->set_value(lastseq);
-
+    std::cerr << "Member " << me << " Waiting for end\n";
     // Once all threads set the promise value, the
     // main thread will, eventually send a terminate:
     // This is done in a loop because other threads
@@ -233,15 +233,16 @@ receiver(
             "Failed read for termination message."
         );
         uint32_t* pFlag = reinterpret_cast<uint32_t*>(pMsg);
-        done = (*pFlag = 0xffffffff);
+        done = (*pFlag == 0xffffffff);
         nng_free(pMsg, msgSize);
     }
+    std::cerr << "Member " << me << " sleeping then exiting\n";
     sleep(2);                   // CLose only when everyone's likely got it.
     checkstat(
         nng_close(s),
         "Failed to close receiver socket."
     );
-
+    std::cerr << "Member " << me << " exiting\n";
     // Done.
 
     
@@ -313,7 +314,7 @@ int main(int argc, char** argv) {
     // We can end the timing here because everyone signalled they're done.
 
     auto end = std::chrono::high_resolution_clock::now();
-    std::cerr << "timing done\n";
+    std::cerr << done << " timing done\n";
 
     // All futures being ready means all tasks/threads are done:
     // Done timing when all the threads exited -- so they got all the msgs
