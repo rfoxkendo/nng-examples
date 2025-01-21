@@ -104,6 +104,7 @@ responder(std::string uri, size_t nsurveys, size_t msgsize) {
     checkstat(
         nng_respondent0_open(&s), "Unable to open responder socket"
     );
+    setOptions(s, 0, 0);     // Unlimited 
     checkstat(
         nng_dial(s, uri.c_str(), nullptr, 0),
         "Unagle to dial into the survey "
@@ -214,7 +215,7 @@ int main(int argc, char** argv) {
         nng_surveyor0_open(&s),
         "Failed to open survey socket."
     );
-    setOptions(s, nSurveyed, msgSize);
+    setOptions(s, 0,0);                 // Unlimited.
     checkstat(
         nng_listen(s, uri.c_str(), nullptr, 0),
         "Surveyor failed to start listening"
