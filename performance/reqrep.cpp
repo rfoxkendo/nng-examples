@@ -162,9 +162,6 @@ int main(int argc, char** argv) {
     nng_socket s;
     char cr;
 
-    std::cout << "To  start hit enter: ";
-    std::cout.flush();
-    cr = std::cin.get();
 
     // large request, small reply.
 
