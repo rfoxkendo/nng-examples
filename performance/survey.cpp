@@ -63,7 +63,22 @@ checkstat(int status,  const char* doing) {
     }
 }
 
-
+/** Set RECVMAXSZ which, hopefully allows us to 
+* receive large responses.
+* @param   socket  - Socket who's options we set.
+* @param   nresp   - Number of respondenrs.
+* @param   respsize - Size of the response from each.
+*
+*  We set the above quantities to 2*nresp*respsize.
+*/
+static void
+setOptions(nng_socket socket, int nresp, int respsize) {
+    size_t max = respsize*nresp*2;
+    checkstat(
+        nng_setopt(socket, NNG_OPT_RECVMAXSZ, &max, sizeof(max)),
+        "Unable to set RECVMAXSZ"
+    );
+}
 
 /**
  *  responder
@@ -199,6 +214,7 @@ int main(int argc, char** argv) {
         nng_surveyor0_open(&s),
         "Failed to open survey socket."
     );
+    setOptions(s, nSurveyed, msgSize);
     checkstat(
         nng_listen(s, uri.c_str(), nullptr, 0),
         "Surveyor failed to start listening"
